@@ -29,13 +29,15 @@ app.use((req, res, next) => {
 // Register REST API Endpoints
 app.use('/api', apiRoutes);
 
-// Serve Frontend Static Files
+// Serve Frontend Static Views & Assets
+app.use(express.static(path.join(__dirname, 'views')));
+app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use(express.static(__dirname));
 
 // Fallback route cho Single Page Document / Routing
 app.use((req, res, next) => {
   if (req.url.startsWith('/api')) return next();
-  res.sendFile(path.join(__dirname, 'index.html'));
+  res.sendFile(path.join(__dirname, 'views', 'index.html'));
 });
 
 // Khởi chạy Server
