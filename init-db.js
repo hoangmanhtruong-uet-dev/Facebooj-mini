@@ -102,7 +102,16 @@ async function initDatabase() {
 
     console.log('🎉 [Init DB] Khởi tạo Aiven MySQL Cloud Database sẵn sàng 100%!');
   } catch (err) {
-    console.error('❌ [Init DB Error] Lỗi kết nối Aiven MySQL:', err.message);
+    if (err.code === 'ENOTFOUND') {
+      console.error(`\n❌ [Init DB Error] Lỗi phân giải tên miền Aiven DNS (ENOTFOUND): "${host}"`);
+      console.error(`👉 Nguyên nhân: Service Aiven MySQL hiện đang TẮT (Power Off), bị Tạm dừng (Paused) hoặc đang khởi động lại (Rebuilding).`);
+      console.error(`💡 Hướng dẫn khắc phục:`);
+      console.error(`  1. Mở trình duyệt truy cập: https://console.aiven.io`);
+      console.error(`  2. Chọn service "facebook-mini-01" và kiểm tra xem nút nguồn "Power ON" đã được BẬT chưa (trạng thái màu XANH - RUNNING).`);
+      console.error(`  3. Đợi khoảng 1 phút sau khi service BẬT hẳn, sau đó chạy lại lệnh: npm run db:init\n`);
+    } else {
+      console.error('❌ [Init DB Error] Lỗi kết nối Aiven MySQL:', err.message);
+    }
   } finally {
     if (connection) await connection.end();
   }
