@@ -1,6 +1,6 @@
 /**
  * Database Initializer & Seed Data Script (init-db.js)
- * Tự động tạo MySQL Database, Bảng & Seed dữ liệu mẫu cho EduHub Platform.
+ * Tự động kết nối & tạo bảng cho Aiven MySQL Cloud hoặc Local MySQL Server.
  */
 
 const mysql = require('mysql2/promise');
@@ -9,25 +9,33 @@ const path = require('path');
 require('dotenv').config();
 
 async function initDatabase() {
-  console.log('🚀 [Init DB] Đang khởi chạy quy trình cấu hình MySQL Database...');
+  console.log('🚀 [Init DB] Đang khởi chạy quy trình cấu hình Aiven / MySQL Cloud Database...');
 
-  const host = process.env.DB_HOST || 'localhost';
-  const port = parseInt(process.env.DB_PORT || '3306', 10);
-  const user = process.env.DB_USER || 'root';
+  const host = process.env.DB_HOST || 'facebook-mini-01-developerhoangtruong-8e80.h.aivencloud.com';
+  const port = parseInt(process.env.DB_PORT || '27050', 10);
+  const user = process.env.DB_USER || 'avnadmin';
   const password = process.env.DB_PASSWORD || '';
-  const dbName = process.env.DB_NAME || 'eduhub_db';
+  const dbName = process.env.DB_NAME || 'defaultdb';
+
+  const isSSL = process.env.DB_SSL === 'REQUIRED' || 
+                process.env.DB_SSL === 'true' || 
+                host.includes('aivencloud.com');
 
   let connection;
 
   try {
-    // 1. Kết nối ban đầu không chọn DB để tạo DB nếu chưa có
-    connection = await mysql.createConnection({ host, port, user, password });
-    console.log(`📡 [Init DB] Đã kết nối đến MySQL Server tại ${host}:${port}`);
+    // 1. Kết nối trực tiếp đến database được chỉ định (hỗ trợ SSL Aiven)
+    const connConfig = {
+      host,
+      port,
+      user,
+      password,
+      database: dbName,
+      ssl: isSSL ? { rejectUnauthorized: false } : false
+    };
 
-    await connection.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
-    console.log(`✅ [Init DB] Cơ sở dữ liệu "${dbName}" đã sẵn sàng.`);
-
-    await connection.changeUser({ database: dbName });
+    connection = await mysql.createConnection(connConfig);
+    console.log(`📡 [Init DB] Đã kết nối đến MySQL Server tại ${host}:${port} (Database: ${dbName}, SSL: ${isSSL ? 'Bật' : 'Tắt'})`);
 
     // 2. Đọc file schema.sql và thực thi
     const schemaPath = path.join(__dirname, 'schema.sql');
@@ -40,7 +48,14 @@ async function initDatabase() {
 
       for (const statement of statements) {
         if (statement) {
-          await connection.query(statement);
+          try {
+            await connection.query(statement);
+          } catch (e) {
+            // Bỏ qua lỗi nếu bảng hoặc DB đã tồn tại
+            if (!e.message.includes('already exists')) {
+              console.warn('⚠️ Statement warning:', e.message);
+            }
+          }
         }
       }
       console.log('✅ [Init DB] Đã tạo toàn bộ các bảng trong Schema MySQL thành công!');
@@ -85,9 +100,9 @@ async function initDatabase() {
       console.log('✅ [Init DB] Nạp dữ liệu mẫu hoàn tất!');
     }
 
-    console.log('🎉 [Init DB] Khởi tạo MySQL Database sẵn sàng 100%!');
+    console.log('🎉 [Init DB] Khởi tạo Aiven MySQL Cloud Database sẵn sàng 100%!');
   } catch (err) {
-    console.error('❌ [Init DB Error] Lỗi trong quá trình khởi tạo MySQL:', err.message);
+    console.error('❌ [Init DB Error] Lỗi kết nối Aiven MySQL:', err.message);
   } finally {
     if (connection) await connection.end();
   }
