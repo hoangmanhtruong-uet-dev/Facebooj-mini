@@ -298,8 +298,54 @@ window.StorageManager = {
 
     if (postChanged) this.set('posts', posts);
     if (docChanged) this.set('documents', docs);
+  },
+
+  // Đồng bộ MySQL REST API với Local Data Cache
+  async syncWithMySQL() {
+    if (!window.APIClient) return false;
+    const isOnline = await APIClient.checkHealth();
+    if (!isOnline) {
+      console.log('ℹ️ [StorageManager] MySQL DB chưa bật hoặc ngắt kết nối. Đang dùng bộ nhớ LocalStorage.');
+      return false;
+    }
+
+    try {
+      console.log('⚡ [StorageManager] Kết nối MySQL thành công! Đang đồng bộ dữ liệu...');
+      const [posts, docs] = await Promise.all([
+        APIClient.getPosts({ status: 'all' }),
+        APIClient.getDocuments({ status: 'all' })
+      ]);
+
+      if (Array.isArray(posts) && posts.length > 0) {
+        this.set('posts', posts);
+      }
+      if (Array.isArray(docs) && docs.length > 0) {
+        this.set('documents', docs);
+      }
+
+      this.showMySQLConnectedBadge();
+      return true;
+    } catch (err) {
+      console.warn('⚠️ [StorageManager] Lỗi đồng bộ MySQL:', err.message);
+      return false;
+    }
+  },
+
+  showMySQLConnectedBadge() {
+    if (document.getElementById('mysqlBadge')) return;
+    const badge = document.createElement('div');
+    badge.id = 'mysqlBadge';
+    badge.className = 'fixed bottom-4 right-4 z-50 px-3.5 py-1.5 rounded-full bg-emerald-600/90 text-white font-mono text-[11px] font-bold shadow-lg flex items-center gap-2 backdrop-blur-md animate-in fade-in duration-300';
+    badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-white animate-pulse"></span><span>MySQL Database Connected</span>';
+    document.body.appendChild(badge);
   }
 };
 
-// Khởi chạy seed data ngay lập tức
+// Khởi chạy seed data và đồng bộ MySQL DB
 StorageManager.initSeedData();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => StorageManager.syncWithMySQL());
+} else {
+  StorageManager.syncWithMySQL();
+}
+

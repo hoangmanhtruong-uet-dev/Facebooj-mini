@@ -25,8 +25,22 @@ window.Auth = {
     StorageManager.set(this.SESSION_KEY, user);
   },
 
-  // Đăng nhập
-  login(username, password) {
+  // Đăng nhập (Async support for MySQL DB)
+  async login(username, password) {
+    if (window.APIClient && APIClient.isMySQLActive) {
+      try {
+        const res = await APIClient.login(username, password);
+        if (res.success && res.user) {
+          this.setCurrentUser(res.user);
+          Utils.showToast(`Chào mừng ${res.user.fullName} đã quay trở lại! (MySQL Database)`, 'success');
+          return { success: true, user: res.user };
+        }
+      } catch (err) {
+        Utils.showToast(err.message || 'Lỗi đăng nhập MySQL DB', 'error');
+        return { success: false, error: err.message };
+      }
+    }
+
     const users = StorageManager.get('users', []);
     const user = users.find(u => (u.username === username || u.email === username) && u.password === password);
     
@@ -41,7 +55,21 @@ window.Auth = {
   },
 
   // Đăng ký tài khoản sinh viên mới
-  register(data) {
+  async register(data) {
+    if (window.APIClient && APIClient.isMySQLActive) {
+      try {
+        const res = await APIClient.register(data);
+        if (res.success && res.user) {
+          this.setCurrentUser(res.user);
+          Utils.showToast('Đăng ký tài khoản thành công vào MySQL Database!', 'success');
+          return { success: true, user: res.user };
+        }
+      } catch (err) {
+        Utils.showToast(err.message || 'Lỗi đăng ký MySQL DB', 'error');
+        return { success: false, error: err.message };
+      }
+    }
+
     const users = StorageManager.get('users', []);
     
     if (users.some(u => u.username === data.username)) {
@@ -56,7 +84,7 @@ window.Auth = {
       fullName: data.fullName,
       email: data.email || `${data.username}@student.edu.vn`,
       role: 'student',
-      avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDiZgW59iKVUVGv3CPk5My43-_Q6O2sQ7dal5C-pGq5cKMZSSSdp2d87NI-q6oq69z1XtJLaBK3gDKUKTtg2_FqFjq983x_MWxd3r0ajqW4L8ovDwh-V9sI-RLRHqhb3nlXCG0J6sb-C6NZNdRf57TgFdrGPtPRFZisSB4SfcNDUeT1k7ui-OIqNL3TKfkjOjNQADjm0bWeBPR5mVuNgpaaD0jKQt7jdt5suxCbpeYI1RP7fSSCCi9BEQ',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
       department: data.department || 'Công nghệ Thông tin',
       school: data.school || 'Đại học Bách Khoa',
       savedDocIds: [],

@@ -738,7 +738,7 @@ window.Moderation = {
     modal.querySelector('#btnCancelDisciplineModal')?.addEventListener('click', closeModal);
 
     // Submit Discipline Form
-    modal.querySelector('#btnSubmitDisciplineModal')?.addEventListener('click', () => {
+    modal.querySelector('#btnSubmitDisciplineModal')?.addEventListener('click', async () => {
       const selectedRadio = modal.querySelector('input[name="disciplineAction"]:checked');
       const action = selectedRadio ? selectedRadio.value : 'delete';
       const reason = modal.querySelector('#disciplineReasonSelect')?.value || 'Spam quảng cáo / Link tệp tin độc hại';
@@ -746,7 +746,30 @@ window.Moderation = {
 
       const actionText = action === 'delete' ? 'Gỡ bỏ & Xóa vĩnh viễn' : (action === 'hide' ? 'Tạm ẩn để khắc phục' : 'Gắn Cảnh báo chính thức');
 
-      // Update database storage
+      // Gửi yêu cầu MySQL API nếu DB active
+      if (window.APIClient && APIClient.isMySQLActive) {
+        try {
+          await APIClient.disciplineItem({
+            itemId: item.id,
+            itemType,
+            action,
+            reason,
+            note,
+            moderatorName: currentUser.fullName
+          });
+          closeModal();
+          Utils.showToast(`Đã xử lý kỷ luật bài viết trên MySQL DB và gửi thông báo tới ${item.authorName}!`, 'success');
+          await StorageManager.syncWithMySQL();
+          this.renderDashboard();
+          this.renderQueuePage();
+          Auth.syncUI();
+          return;
+        } catch (err) {
+          console.warn('Lỗi xử lý kỷ luật MySQL API:', err.message);
+        }
+      }
+
+      // Update local storage fallback
       if (action === 'delete') {
         this.rejectItem(item.id, itemType, reason);
       } else {

@@ -53,27 +53,44 @@ window.Posts = {
   },
 
   // Tạo bài thảo luận mới
-  createPost(data) {
+  async createPost(data) {
     const currentUser = Auth.getCurrentUser();
     if (!currentUser) {
       Utils.showToast('Vui lòng đăng nhập để đăng bài thảo luận!', 'warning');
       return false;
     }
 
+    const newPostData = {
+      userId: currentUser.id,
+      authorName: currentUser.fullName,
+      authorUsername: currentUser.username,
+      department: currentUser.department || 'CNTT',
+      title: Utils.escapeHTML(data.title || data.content.substring(0, 60)),
+      content: Utils.escapeHTML(data.content),
+      tags: data.tags || ['#HocThuat'],
+      codeSnippet: data.codeSnippet ? Utils.escapeHTML(data.codeSnippet) : null
+    };
+
+    // Gọi MySQL REST API nếu DB active
+    if (window.APIClient && APIClient.isMySQLActive) {
+      try {
+        const res = await APIClient.createPost(newPostData);
+        Utils.showToast('Đã đăng bài thảo luận thành công vào MySQL DB!', 'success');
+        StorageManager.syncWithMySQL();
+        return res;
+      } catch (err) {
+        console.warn('Lỗi gửi bài lên MySQL API:', err.message);
+      }
+    }
+
+    // Local fallback
     const posts = StorageManager.get('posts', []);
     const newPost = {
       id: Utils.generateId('post'),
-      userId: currentUser.id,
-      authorName: currentUser.fullName,
+      ...newPostData,
       authorAvatar: currentUser.avatar,
       authorRole: currentUser.role === 'moderator' ? 'Moderator' : 'Sinh viên',
-      title: Utils.escapeHTML(data.title || data.content.substring(0, 60)),
-      content: Utils.escapeHTML(data.content),
-      codeSnippet: data.codeSnippet ? Utils.escapeHTML(data.codeSnippet) : null,
-      mediaUrl: data.mediaUrl && Utils.isValidURL(data.mediaUrl) ? data.mediaUrl : null,
-      category: data.category || 'Công nghệ thông tin',
-      tags: data.tags || ['#HocThuat'],
-      visibility: data.visibility || 'Public', // Public, Friends, Only Me
+      visibility: data.visibility || 'Public',
       status: 'approved',
       likes: [],
       commentsCount: 0,
@@ -87,11 +104,22 @@ window.Posts = {
   },
 
   // Thả tim / Upvote
-  toggleLike(postId) {
+  async toggleLike(postId) {
     const currentUser = Auth.getCurrentUser();
     if (!currentUser) {
       Utils.showToast('Vui lòng đăng nhập để tương tác bài viết!', 'warning');
       return false;
+    }
+
+    if (window.APIClient && APIClient.isMySQLActive) {
+      try {
+        const res = await APIClient.likePost(postId, currentUser.id);
+        Utils.showToast(res.liked ? 'Đã thả tim bài viết (MySQL)!' : 'Đã bỏ thả tim bài viết', 'info');
+        StorageManager.syncWithMySQL();
+        return res.likesCount;
+      } catch (err) {
+        console.warn('Lỗi like post MySQL API:', err.message);
+      }
     }
 
     const posts = StorageManager.get('posts', []);
@@ -112,7 +140,7 @@ window.Posts = {
   },
 
   // Thêm bình luận hoặc trả lời bình luận (Reply)
-  addComment(postId, content, parentId = null, mediaUrl = null) {
+  async addComment(postId, content, parentId = null, mediaUrl = null) {
     const currentUser = Auth.getCurrentUser();
     if (!currentUser) {
       Utils.showToast('Vui lòng đăng nhập để bình luận!', 'warning');
@@ -122,6 +150,26 @@ window.Posts = {
     if (!content.trim()) {
       Utils.showToast('Nội dung bình luận không được để trống!', 'warning');
       return false;
+    }
+
+    const commentData = {
+      targetType: 'post',
+      targetId: postId,
+      userId: currentUser.id,
+      authorName: currentUser.fullName,
+      authorAvatar: currentUser.avatar,
+      content: Utils.escapeHTML(content)
+    };
+
+    if (window.APIClient && APIClient.isMySQLActive) {
+      try {
+        const res = await APIClient.createComment(commentData);
+        Utils.showToast('Đã gửi bình luận thành công (MySQL DB)!', 'success');
+        StorageManager.syncWithMySQL();
+        return res;
+      } catch (err) {
+        console.warn('Lỗi gửi comment MySQL API:', err.message);
+      }
     }
 
     const comments = StorageManager.get('comments', []);
@@ -141,7 +189,6 @@ window.Posts = {
     comments.push(newComment);
     StorageManager.set('comments', comments);
 
-    // Cập nhật số bình luận trong bài viết
     const posts = StorageManager.get('posts', []);
     const post = posts.find(p => p.id === postId);
     if (post) {

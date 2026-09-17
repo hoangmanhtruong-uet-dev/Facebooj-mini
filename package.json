@@ -4,10 +4,22 @@
   "description": "Nền tảng Mạng xã hội & Chia sẻ tài liệu học tập EduHub",
   "main": "index.html",
   "scripts": {
-    "dev": "npx serve .",
-    "start": "npx serve ."
+    "dev": "node server.js",
+    "start": "node server.js",
+    "db:init": "node init-db.js"
   },
-  "keywords": ["eduhub", "facebook-mini", "tailwind", "vanillajs"],
+  "keywords": [
+    "eduhub",
+    "facebook-mini",
+    "tailwind",
+    "vanillajs"
+  ],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "mysql2": "^3.24.4"
+  }
 }
