@@ -164,8 +164,31 @@ window.Posts = {
     if (window.APIClient && APIClient.isMySQLActive) {
       try {
         const res = await APIClient.createComment(commentData);
-        Utils.showToast('Đã gửi bình luận thành công (MySQL DB)!', 'success');
-        StorageManager.syncWithMySQL();
+        Utils.showToast('Đã gửi bình luận thành công (MySQL Database)!', 'success');
+        
+        // Thêm ngay comment mới vào LocalStorage cache để UI render tức thì
+        const comments = StorageManager.get('comments', []);
+        comments.push({
+          id: res.id || Utils.generateId('cmt'),
+          postId: postId,
+          userId: currentUser.id,
+          authorName: currentUser.fullName,
+          authorAvatar: currentUser.avatar,
+          authorRole: currentUser.role === 'moderator' ? 'Moderator' : 'Sinh viên',
+          parentId: parentId,
+          content: Utils.escapeHTML(content),
+          createdAt: new Date().toISOString()
+        });
+        StorageManager.set('comments', comments);
+
+        // Cập nhật số bình luận của bài viết
+        const posts = StorageManager.get('posts', []);
+        const post = posts.find(p => p.id === postId);
+        if (post) {
+          post.commentsCount = (post.commentsCount || 0) + 1;
+          StorageManager.set('posts', posts);
+        }
+
         return res;
       } catch (err) {
         console.warn('Lỗi gửi comment MySQL API:', err.message);

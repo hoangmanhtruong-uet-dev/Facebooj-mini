@@ -34,11 +34,7 @@ async function checkConnection() {
     connection.release();
     return true;
   } catch (error) {
-    if (error.code === 'ENOTFOUND') {
-      console.warn(`⚠️ [MySQL Database Warning] Lỗi DNS ENOTFOUND (${dbConfig.host}). Vui lòng đảm bảo Service Aiven MySQL đang ở trạng thái RUNNING (Power ON) trên console.aiven.io!`);
-    } else {
-      console.warn('⚠️ [MySQL Database Warning] Không thể kết nối trực tiếp đến MySQL Server:', error.message);
-    }
+    console.warn(`⚠️ [MySQL Database Check Failed] (${dbConfig.host}:${dbConfig.port}):`, error.message, error.code);
     return false;
   }
 }

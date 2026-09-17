@@ -286,7 +286,7 @@ function initPostDetailPage() {
   const commentInput = document.getElementById('postCommentContent');
 
   if (btnSubmitComment && commentInput) {
-    btnSubmitComment.addEventListener('click', (e) => {
+    btnSubmitComment.addEventListener('click', async (e) => {
       e.preventDefault();
       const content = commentInput.value.trim();
       if (!content) {
@@ -295,7 +295,7 @@ function initPostDetailPage() {
       }
 
       const targetPostId = post ? post.id : postId;
-      const newComment = Posts.addComment(targetPostId, content);
+      const newComment = await Posts.addComment(targetPostId, content);
       if (newComment) {
         commentInput.value = '';
         renderPostComments(targetPostId);
@@ -318,7 +318,7 @@ function renderPostComments(postId) {
   if (!container) return;
 
   const allComments = StorageManager.get('comments', []);
-  const postComments = allComments.filter(c => c.postId === postId);
+  const postComments = allComments.filter(c => c.postId === postId || c.targetId === postId);
 
   if (postComments.length === 0) {
     container.innerHTML = `
@@ -1130,7 +1130,7 @@ function initModerationPage() {
 // 7. GLOBAL EVENT DELEGATION
 // ==========================================
 function bindGlobalEvents() {
-  document.addEventListener('click', (e) => {
+  document.addEventListener('click', async (e) => {
     // 0. Nút Đổi Theme Sáng / Tối
     const themeBtn = e.target.closest('#btnThemeToggle, .btn-theme-toggle');
     if (themeBtn) {
@@ -1286,7 +1286,7 @@ function bindGlobalEvents() {
         const urlParams = new URLSearchParams(window.location.search);
         const postId = urlParams.get('id') || 'post_501';
 
-        const newComment = Posts.addComment(postId, content);
+        const newComment = await Posts.addComment(postId, content);
         if (newComment) {
           textarea.value = '';
           if (typeof renderPostComments === 'function') {
